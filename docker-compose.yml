@@ -1,0 +1,38 @@
+version: "3.9"
+
+# =============================================================
+#  CTF Lab: Cookies Reuse & MFA Bypass
+#  Single-container, host network — VMware ESXi deployment
+#
+#  VM NIC Layout:
+#    NIC1 (ens192) → 192.168.100.0/24  (Legitimate Admin)
+#    NIC2 (ens224) → 10.10.14.0/24    (Attacker / Red Team)
+#
+#  Container langsung bind ke IP VM — tidak ada Docker bridge.
+#  Semua port terbuka di kedua NIC kecuali dikunci via iptables
+#  (lihat provision-esxi.sh untuk firewall rules per NIC).
+# =============================================================
+
+services:
+  ctf-lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ctf_lab
+    restart: unless-stopped
+
+    # ----------------------------------------------------------
+    # Host network — container pakai network stack VM langsung.
+    # Port 3075 (web) dan 2275 (SSH) terbuka di IP VM.
+    # Firewall di provision-esxi.sh yang membatasi akses per NIC.
+    # ----------------------------------------------------------
+    network_mode: host
+
+    # ----------------------------------------------------------
+    # Log volume — persist di host VM agar survive restart
+    # ----------------------------------------------------------
+    volumes:
+      - /opt/admin/logs:/opt/admin/logs
+
+    # Hanya restart jika crash, bukan jika di-stop manual
+    stop_signal: SIGTERM

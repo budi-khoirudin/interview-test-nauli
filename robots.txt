@@ -1,0 +1,6 @@
+# Admin Feedback System — robots.txt
+# FLAG: SCENARIO75{/api/verify-mfa} | SCENARIO75{/dashboard}
+
+User-agent: *
+Disallow: /api/verify-mfa
+Disallow: /dashboard
