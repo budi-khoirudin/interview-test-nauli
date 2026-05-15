@@ -22,9 +22,9 @@ set -euo pipefail
 # -------------------------------------------------------
 NIC_INTERNAL="ens37"          # NIC1 — Internal 192.168.100.0/24
 NIC_PUBLIC="ens38"       # NIC2 — Public 10.10.14.0/24
-IP_INTERNAL="192.168.100.75"   # IP VM di jaringan internal
+IP_INTERNAL="192.168.1.75"   # IP VM di jaringan internal
 IP_PUBLIC="10.10.14.75"   # IP VM di jaringan public
-GW_INTERNAL="192.168.100.1"    # Gateway jaringan internal
+GW_INTERNAL="192.168.1.100"    # Gateway jaringan internal
 REPO_DIR="/opt/ctf-lab"     # Direktori project
 
 # -------------------------------------------------------
