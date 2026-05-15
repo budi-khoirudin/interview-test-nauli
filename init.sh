@@ -136,6 +136,11 @@ fi
 echo "[*] Injecting CTF attack logs into /opt/admin/logs ..."
 python3 /usr/local/bin/inject_logs.py
 
+# Pastikan www-data bisa menulis ke file yang baru saja di-inject
+chown root:www-data /opt/admin/logs/*.log
+chmod 664 /opt/admin/logs/*.log
+echo "[✓] Log files permissions set (writable by www-data)"
+
 # -------------------------------------------------------
 # 9. Start semua service via supervisord
 #    supervisord.conf di-mount via volume

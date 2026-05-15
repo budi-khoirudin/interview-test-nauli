@@ -9,11 +9,11 @@
 ```
 VMware ESXi Host
 └── Linux VM (Ubuntu 22.04)
-    ├── NIC1 (ens192) ── Port Group "Internal-Net"    → 192.168.1.0/24
+    ├── NIC1 (ens37) ── Port Group "Internal-Net"    → 192.168.1.0/24
     │                                                  └── Blue Team SSH :2275
     │                                                  └── Web App       :3075
     │
-    ├── NIC2 (ens224) ── Port Group "Public-Net" → 10.10.14.0/24
+    ├── NIC2 (ens38) ── Port Group "Public-Net" → 10.10.14.0/24
     │                                                  └── Web App       :3075 only
     │
     └── Docker (host network)
@@ -31,10 +31,10 @@ VMware ESXi Host
 
 Sebelum deploy VM, buat **2 Port Group** di ESXi:
 
-| Port Group     | VLAN | Subnet           | Tujuan              |
-| -------------- | ---- | ---------------- | ------------------- |
+| Port Group     | VLAN | Subnet         | Tujuan              |
+| -------------- | ---- | -------------- | ------------------- |
 | `Internal-Net` | 100  | 192.168.1.0/24 | Blue Team / Admin   |
-| `Public-Net`   | 14   | 10.10.14.0/24    | Red Team / Attacker |
+| `Public-Net`   | 14   | 10.10.14.0/24  | Red Team / Attacker |
 
 ### Langkah ESXi:
 
@@ -72,10 +72,9 @@ Script otomatis akan:
 
 ```
 ctf-lab/
-├── Dockerfile            ← single container (Nginx + PHP-FPM + SSH)
 ├── docker-compose.yml    ← host network mode, 1 service
 ├── supervisord.conf      ← orkestrasi nginx + php-fpm + sshd
-├── entrypoint.sh         ← inject logs → start supervisord
+├── init.sh               ← inject logs → start supervisord
 ├── inject_logs.py        ← generate access.log + error.log
 ├── provision-esxi.sh     ← full VM provisioner untuk ESXi
 ├── nginx.conf            ← config Nginx + routing
@@ -87,10 +86,10 @@ ctf-lab/
 
 ## Firewall Rules (iptables)
 
-| NIC    | Subnet           | Port 3075 | Port 2275 | Port 22  |
-| ------ | ---------------- | --------- | --------- | -------- |
-| ens192 | 192.168.1.0/24   | ✅ Allow   | ✅ Allow   | ✅ Allow  |
-| ens224 | 10.10.14.0/24    | ✅ Allow   | ❌ Reject  | ❌ Reject |
+| NIC   | Subnet         | Port 3075 | Port 2275 | Port 22  |
+| ----- | -------------- | --------- | --------- | -------- |
+| ens37 | 192.168.1.0/24 | ✅ Allow   | ✅ Allow   | ✅ Allow  |
+| ens38 | 10.10.14.0/24  | ✅ Allow   | ❌ Reject  | ❌ Reject |
 
 Blue Team SSH **hanya** bisa dari jaringan Admin. Attacker hanya bisa akses web.
 
