@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm-trixie
 
 # =============================================================
 #  Single-container CTF Lab
@@ -9,9 +9,9 @@ FROM php:8.2-fpm
 # Install semua dependency sekaligus dalam 1 layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        nginx \
-        supervisor \
-        openssh-server && \
+    nginx \
+    supervisor \
+    openssh-server && \
     rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------------

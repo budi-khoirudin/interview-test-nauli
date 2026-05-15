@@ -2,6 +2,7 @@
 // =============================================================
 //  Admin Feedback System — Vulnerable App (CTF Lab)
 //  KISS principle: everything in one file, no framework
+//  Database: SQLite for feedback storage
 // =============================================================
 
 // ---------- PHASE 1: Headers & Session Init ----------
@@ -21,6 +22,23 @@ if (!isset($_COOKIE['pre_mfa_session']) && !isset($_COOKIE['adm_sess_token'])) {
 
 session_start();
 
+// ---------- Database Init ----------
+// SQLite database untuk simpan feedback dari attacker
+$db_path = '/opt/admin/logs/feedback.db';
+$db = new SQLite3($db_path);
+
+// Create table jika belum ada
+$db->exec('
+    CREATE TABLE IF NOT EXISTS feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        message TEXT NOT NULL,
+        ip TEXT,
+        user_agent TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+');
+
 // ---------- Routing ----------
 $path = strtok($_SERVER['REQUEST_URI'], '?');
 
@@ -33,21 +51,21 @@ if ($path === '/api/verify-mfa') {
     exit;
 }
 
-// Dashboard — restricted area
+// Dashboard — restricted area (admin melihat semua feedback dari DB)
 // FLAG: SCENARIO75{/dashboard}
 if ($path === '/dashboard') {
-    handle_dashboard();
+    handle_dashboard($db);
     exit;
 }
 
 // Feedback POST endpoint
 // FLAG: SCENARIO75{POST}
 if ($path === '/feedback') {
-    handle_feedback();
+    handle_feedback($db);
     exit;
 }
 
-// Default: show login / feedback form
+// Default: show public feedback form (attacker input di sini)
 show_home();
 exit;
 
@@ -70,7 +88,7 @@ function waf_check(string $input): bool {
     return true;
 }
 
-// ---------- Home / Feedback Form ----------
+// ---------- Home / Public Feedback Form ----------
 function show_home(): void {
     ?>
 <!DOCTYPE html>
@@ -110,7 +128,7 @@ function show_home(): void {
     if ($msg === 'blocked') {
         echo '<p class="msg err">⚠ Forbidden payload detected. (403)</p>';
     } elseif ($msg === 'sent') {
-        echo '<p class="msg ok">✓ Feedback submitted.</p>';
+        echo '<p class="msg ok">✓ Feedback submitted. Thank you!</p>';
     }
 ?>
 </body>
@@ -119,7 +137,7 @@ function show_home(): void {
 }
 
 // ---------- Feedback Submission ----------
-function handle_feedback(): void {
+function handle_feedback(SQLite3 $db): void {
     // Only POST allowed — FLAG: SCENARIO75{POST}
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
@@ -127,6 +145,7 @@ function handle_feedback(): void {
         return;
     }
 
+    $name    = $_POST['name'] ?? '';
     $message = $_POST['message'] ?? '';
 
     // WAF check
@@ -142,9 +161,17 @@ function handle_feedback(): void {
         return;
     }
 
-    // Store feedback in session so dashboard can reflect it
+    // Insert feedback ke database — TIDAK ADA SANITASI (vulnerable to XSS)
     // FLAG: SCENARIO75{fetch} — fetch() is allowed; no CSP blocking it
-    $_SESSION['last_feedback'] = $message;
+    $ip         = $_SERVER['REMOTE_ADDR'] ?? '';
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+    $stmt = $db->prepare('INSERT INTO feedback (name, message, ip, user_agent) VALUES (:name, :message, :ip, :ua)');
+    $stmt->bindValue(':name',    $name,        SQLITE3_TEXT);
+    $stmt->bindValue(':message', $message,     SQLITE3_TEXT);
+    $stmt->bindValue(':ip',      $ip,          SQLITE3_TEXT);
+    $stmt->bindValue(':ua',      $user_agent,  SQLITE3_TEXT);
+    $stmt->execute();
 
     header('Location: /?msg=sent');
 }
@@ -156,11 +183,11 @@ function handle_mfa(): void {
     echo json_encode(['status' => 'fail', 'message' => 'Invalid OTP']);
 }
 
-// ---------- Dashboard ----------
+// ---------- Dashboard — Admin melihat semua feedback dari database ----------
 // FLAG: SCENARIO75{/dashboard} | SCENARIO75{adm_sess} | SCENARIO75{xss-payload}
 // FLAG: SCENARIO75{/api/verify-mfa} (skipped when valid cookie present)
 // FLAG: SCENARIO75{RED_C00k13_MFA_Byp4ss_0wn3d}
-function handle_dashboard(): void {
+function handle_dashboard(SQLite3 $db): void {
     $adm_cookie = $_COOKIE['adm_sess_token'] ?? '';
 
     // Session Replay path: if valid adm_sess_ cookie → skip MFA entirely
@@ -183,8 +210,8 @@ function handle_dashboard(): void {
         file_put_contents('/opt/admin/logs/error.log', $entry, FILE_APPEND | LOCK_EX);
     }
 
-    // Retrieve stored XSS payload from session / cookie
-    $xss_payload = $_SESSION['last_feedback'] ?? '';
+    // Ambil semua feedback dari database
+    $result = $db->query('SELECT * FROM feedback ORDER BY created_at DESC');
 
     ?>
 <!DOCTYPE html>
@@ -193,23 +220,54 @@ function handle_dashboard(): void {
 <meta charset="UTF-8">
 <title>Admin Dashboard</title>
 <style>
-  body{font-family:monospace;background:#0d0d0d;color:#00ff41;margin:40px auto;max-width:800px}
-  .xss-payload{border:1px solid #0f0;padding:12px;margin:16px 0;background:#111}
+  body{font-family:monospace;background:#0d0d0d;color:#00ff41;margin:40px auto;max-width:900px}
+  table{width:100%;border-collapse:collapse;margin:20px 0}
+  th,td{border:1px solid #0f0;padding:8px;text-align:left}
+  th{background:#1a1a1a}
+  .xss-payload{background:#111;padding:8px}
   .flag-box{border:2px solid #ff0;padding:12px;color:#ff0;margin-top:24px}
+  .meta{color:#666;font-size:0.85em}
 </style>
 </head>
 <body>
 <h2>[ Admin Dashboard — Welcome ]</h2>
 <p>Logged in as: <strong>administrator</strong></p>
 
-<h3>Latest Feedback:</h3>
-<!-- FLAG: SCENARIO75{xss-payload} -->
-<div class="xss-payload">
+<h3>Feedback Submissions:</h3>
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Message</th>
+      <th>Metadata</th>
+    </tr>
+  </thead>
+  <tbody>
 <?php
-    // Intentionally not sanitised — XSS reflection
-    echo $xss_payload ?: '<em>No feedback yet.</em>';
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        echo '<tr>';
+        echo '<td>' . htmlspecialchars($row['id']) . '</td>';
+        echo '<td>' . htmlspecialchars($row['name']) . '</td>';
+        
+        // FLAG: SCENARIO75{xss-payload}
+        // INTENTIONALLY NOT SANITISED — XSS reflection di sini
+        echo '<td class="xss-payload">' . $row['message'] . '</td>';
+        
+        echo '<td class="meta">';
+        echo 'IP: ' . htmlspecialchars($row['ip']) . '<br>';
+        echo 'Time: ' . htmlspecialchars($row['created_at']);
+        echo '</td>';
+        echo '</tr>';
+    }
+
+    // Jika tidak ada feedback
+    if ($db->querySingle('SELECT COUNT(*) FROM feedback') == 0) {
+        echo '<tr><td colspan="4"><em>No feedback yet.</em></td></tr>';
+    }
 ?>
-</div>
+  </tbody>
+</table>
 
 <!-- FLAG: SCENARIO75{RED_C00k13_MFA_Byp4ss_0wn3d} -->
 <div class="flag-box">
