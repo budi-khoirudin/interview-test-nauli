@@ -22,8 +22,16 @@ if [ ! -f "$FLAG_FILE" ]; then
     # 1. Install dependency (setara RUN apt-get install ...)
     # -------------------------------------------------------
     echo "[*] Installing packages: nginx, supervisor, openssh-server ..."
+
+    # DEBIAN_FRONTEND=noninteractive → supaya dpkg tidak pernah minta input
+    # --force-confold → jika ada konflik conffile (misal nginx.conf yang
+    # sudah ter-mount via volume vs file bawaan paket), pertahankan file
+    # yang sudah ada (file kita) tanpa prompt interaktif
+    export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     apt-get install -y --no-install-recommends \
+        -o Dpkg::Options::="--force-confold" \
+        -o Dpkg::Options::="--force-confdef" \
         nginx \
         supervisor \
         openssh-server
@@ -61,9 +69,11 @@ if [ ! -f "$FLAG_FILE" ]; then
     # 4. Direktori log CTF (setara RUN mkdir + chown + usermod)
     # -------------------------------------------------------
     mkdir -p /opt/admin/logs
-    chown root:root /opt/admin/logs
+    # www-data perlu write untuk buat feedback.db (SQLite)
+    # analyst perlu read untuk forensik log via SSH
+    chown root:www-data /opt/admin/logs
     chmod 775 /opt/admin/logs
-    usermod -aG root analyst
+    usermod -aG www-data analyst   # analyst bisa baca log di /opt/admin/logs
     echo "[✓] Log directory /opt/admin/logs ready"
 
     # -------------------------------------------------------
@@ -74,10 +84,38 @@ if [ ! -f "$FLAG_FILE" ]; then
     echo "[✓] Nginx site enabled"
 
     # -------------------------------------------------------
-    # 6. Permissions web root (setara RUN chown www-data ...)
-    #    index.php dan robots.txt sudah ter-mount via volume
+    # 5b. Konfigurasi PHP-FPM — pakai Unix socket, bukan port 9000
+    #     Host pakai port 9000 → konflik jika network_mode: host
+    #     Unix socket tidak punya konflik port sama sekali
+    #
+    #     Di base image php:8.2-fpm-trixie, listen aktif ada di:
+    #       /usr/local/etc/php-fpm.d/docker.conf (listen = 9000)
     # -------------------------------------------------------
-    chown -R www-data:www-data /var/www/html
+    PHP_DOCKER_CONF="/usr/local/etc/php-fpm.d/docker.conf"
+    if [ -f "$PHP_DOCKER_CONF" ]; then
+        sed -i 's|^listen = .*|listen = /run/php-fpm.sock|' "$PHP_DOCKER_CONF"
+        echo "[✓] PHP-FPM configured: unix:/run/php-fpm.sock (via docker.conf)"
+    else
+        echo "[!] PHP-FPM docker.conf tidak ditemukan: $PHP_DOCKER_CONF"
+    fi
+
+    # Tambahan: aktifkan listen.owner/group agar nginx (www-data) bisa akses socket
+    PHP_POOL="/usr/local/etc/php-fpm.d/www.conf"
+    if [ -f "$PHP_POOL" ]; then
+        sed -i 's|^;listen.owner = .*|listen.owner = www-data|' "$PHP_POOL"
+        sed -i 's|^;listen.group = .*|listen.group = www-data|' "$PHP_POOL"
+        sed -i 's|^;listen.mode = .*|listen.mode = 0660|'       "$PHP_POOL"
+        echo "[✓] PHP-FPM socket permissions set (www-data)"
+    fi
+
+    # -------------------------------------------------------
+    # 6. Permissions web root (setara RUN chown www-data ...)
+    #    index.php dan robots.txt di-mount :ro via volume
+    #    → tidak bisa chown file langsung, cukup set ownership
+    #    pada direktori parent (/var/www/html) saja
+    # -------------------------------------------------------
+    chown www-data:www-data /var/www/html
+    chown -R www-data:www-data /var/www/html 2>/dev/null || true
     echo "[✓] Web root ownership set"
 
     # -------------------------------------------------------

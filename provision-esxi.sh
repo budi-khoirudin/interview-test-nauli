@@ -135,22 +135,22 @@ iptables -A INPUT -i lo -j ACCEPT
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 # --- NIC1 (Internal) ---
-# Allow SSH standard port 22 hanya dari admin network
+# Allow SSH standard port 22 hanya dari admin network (untuk akses VM host)
 iptables -A INPUT -i ${NIC_INTERNAL} -p tcp --dport 22   -j ACCEPT
-# Allow SSH Blue Team port 2275 hanya dari admin network
+# Allow SSH Blue Team port 2275 (sekarang di-forward oleh Docker)
 iptables -A INPUT -i ${NIC_INTERNAL} -p tcp --dport 2275 -j ACCEPT
-# Allow web app port 3075 dari admin network
+# Allow web app port 3075 (sekarang di-forward oleh Docker)
 iptables -A INPUT -i ${NIC_INTERNAL} -p tcp --dport 3075 -j ACCEPT
 # Allow ICMP dari admin
 iptables -A INPUT -i ${NIC_INTERNAL} -p icmp -j ACCEPT
 
 # --- NIC2 (Public) ---
-# Allow web app port 3075 dari attacker network (target utama)
+# Allow web app port 3075 dari attacker network
 iptables -A INPUT -i ${NIC_PUBLIC} -p tcp --dport 3075 -j ACCEPT
-# Block SSH dari attacker (Blue Team SSH hanya dari admin NIC)
+# Block port 2275 dan 22 dari attacker network
 iptables -A INPUT -i ${NIC_PUBLIC} -p tcp --dport 2275 -j REJECT
 iptables -A INPUT -i ${NIC_PUBLIC} -p tcp --dport 22   -j REJECT
-# Allow ICMP dari attacker (untuk recon ping)
+# Allow ICMP dari attacker
 iptables -A INPUT -i ${NIC_PUBLIC} -p icmp -j ACCEPT
 
 # Simpan rules agar survive reboot

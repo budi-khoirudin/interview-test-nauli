@@ -2,7 +2,7 @@ version: "3.9"
 
 # =============================================================
 #  CTF Lab: Cookies Reuse & MFA Bypass
-#  Single-container, host network — VMware ESXi deployment
+#  Single-container — VMware ESXi deployment
 #
 #  Tanpa build — pakai image php:8.2-fpm-trixie langsung.
 #  Semua setup (apt-get, useradd, ssh config, dll.) dilakukan
@@ -36,11 +36,13 @@ services:
     entrypoint: ["/bin/bash", "/init.sh"]
 
     # ----------------------------------------------------------
-    # Host network — container pakai network stack VM langsung.
-    # Port 3075 (web) dan 2275 (SSH) terbuka di IP VM.
-    # Firewall di provision-esxi.sh yang membatasi akses per NIC.
+    # Port mapping: external → internal container
+    #   3075 (VM/host) → 80  (nginx di dalam container)
+    #   2275 (VM/host) → 2275 (sshd di dalam container)
     # ----------------------------------------------------------
-    network_mode: host
+    ports:
+      - "3075:80"    # Web app: akses via http://<VM-IP>:3075
+      - "2275:2275"  # SSH Blue Team: ssh analyst@<VM-IP> -p 2275
 
     # ----------------------------------------------------------
     # Bind mount semua file aplikasi — menggantikan COPY di Dockerfile
