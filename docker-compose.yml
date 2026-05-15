@@ -1,5 +1,3 @@
-version: "3.9"
-
 # =============================================================
 #  CTF Lab: Cookies Reuse & MFA Bypass
 #  Single-container — VMware ESXi deployment
@@ -36,23 +34,14 @@ services:
     entrypoint: ["/bin/bash", "/init.sh"]
 
     # ----------------------------------------------------------
-    # Port mapping: external → internal container
-    #   3075 (VM/host) → 80  (nginx di dalam container)
-    #   2275 (VM/host) → 2275 (sshd di dalam container)
+    # Host network — paling stabil untuk ESXi multi-NIC.
+    # Nginx sudah dikonfigurasi untuk listen di port 3075.
+    # SSH Blue Team listen di port 2275.
     # ----------------------------------------------------------
-    ports:
-      - "3075:80"    # Web app: akses via http://<VM-IP>:3075
-      - "2275:2275"  # SSH Blue Team: ssh analyst@<VM-IP> -p 2275
+    network_mode: host
 
     # ----------------------------------------------------------
-    # Force DNS resolver
-    # ----------------------------------------------------------
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-
-    # ----------------------------------------------------------
-    # Bind mount semua file aplikasi — menggantikan COPY di Dockerfile
+    # Bind mount semua file aplikasi
     # ----------------------------------------------------------
     volumes:
       # Script init (pengganti Dockerfile RUN steps)
