@@ -4,8 +4,8 @@ inject_logs.py — Simulated attack sequence log injector
 Generates realistic access.log + error.log for Blue Team forensics
 
 NIC Layout (VMware ESXi VM):
-  NIC1 (ens192): 192.168.100.0/24  ← Legitimate Admin network
-  NIC2 (ens224): 10.10.14.0/24    ← Attacker / Red Team network
+  NIC1 (ens37): 192.168.1.0/24  ← Legitimate Admin network
+  NIC2 (ens38): 10.10.14.0/24    ← Attacker / Red Team network
 
 All timestamps and flag values match CTF spec exactly.
 """
@@ -27,7 +27,7 @@ PUBLIC_IP = "10.10.14.50"
 # datang dari 192.168.100.10 (subnet baru), tapi log entry yang
 # jadi bahan forensik Blue Team tetap menggunakan 192.168.1.100 sesuai spec.
 INTERNAL_IP_LOG  = "192.168.1.100"   # nilai flag sesuai PDF
-INTERNAL_IP_REAL = "192.168.100.10"  # IP internal nyata di NIC1
+INTERNAL_IP_REAL = "192.168.1.75"  # IP internal nyata di NIC1
 
 UA_PUBLIC = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0"
 UA_INTERNAL    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0"
