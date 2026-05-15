@@ -8,12 +8,10 @@ FROM php:8.2-fpm
 
 # Install semua dependency sekaligus dalam 1 layer
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         nginx \
         supervisor \
-        openssh-server \
-        python3 \
-        python3-minimal && \
+        openssh-server && \
     rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------------
