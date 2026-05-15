@@ -9,7 +9,7 @@
 ```
 VMware ESXi Host
 └── Linux VM (Ubuntu 22.04)
-    ├── NIC1 (ens192) ── Port Group "Internal-Net"    → 192.168.100.0/24
+    ├── NIC1 (ens192) ── Port Group "Internal-Net"    → 192.168.1.0/24
     │                                                  └── Blue Team SSH :2275
     │                                                  └── Web App       :3075
     │
@@ -33,7 +33,7 @@ Sebelum deploy VM, buat **2 Port Group** di ESXi:
 
 | Port Group     | VLAN | Subnet           | Tujuan              |
 | -------------- | ---- | ---------------- | ------------------- |
-| `Internal-Net` | 100  | 192.168.100.0/24 | Blue Team / Admin   |
+| `Internal-Net` | 100  | 192.168.1.0/24 | Blue Team / Admin   |
 | `Public-Net`   | 14   | 10.10.14.0/24    | Red Team / Attacker |
 
 ### Langkah ESXi:
@@ -89,7 +89,7 @@ ctf-lab/
 
 | NIC    | Subnet           | Port 3075 | Port 2275 | Port 22  |
 | ------ | ---------------- | --------- | --------- | -------- |
-| ens192 | 192.168.100.0/24 | ✅ Allow   | ✅ Allow   | ✅ Allow  |
+| ens192 | 192.168.1.0/24   | ✅ Allow   | ✅ Allow   | ✅ Allow  |
 | ens224 | 10.10.14.0/24    | ✅ Allow   | ❌ Reject  | ❌ Reject |
 
 Blue Team SSH **hanya** bisa dari jaringan Admin. Attacker hanya bisa akses web.
@@ -142,8 +142,8 @@ Flags: `SCENARIO75{adm_sess}` | `SCENARIO75{xss-payload}` | `SCENARIO75{RED_C00k
 ## Blue Team Walkthrough
 
 ```bash
-# SSH hanya dari Admin network (192.168.100.0/24)
-ssh analyst@192.168.100.50 -p 2275
+# SSH hanya dari Admin network (192.168.1.0/24)
+ssh analyst@192.168.1.75 -p 2275
 # password: blue_team_rocks
 
 # Atau langsung dari host VM
