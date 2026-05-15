@@ -4,22 +4,36 @@ version: "3.9"
 #  CTF Lab: Cookies Reuse & MFA Bypass
 #  Single-container, host network — VMware ESXi deployment
 #
-#  VM NIC Layout:
-#    NIC1 (ens192) → 192.168.100.0/24  (Legitimate Admin)
-#    NIC2 (ens224) → 10.10.14.0/24    (Attacker / Red Team)
+#  Tanpa build — pakai image php:8.2-fpm-trixie langsung.
+#  Semua setup (apt-get, useradd, ssh config, dll.) dilakukan
+#  oleh init.sh saat container pertama kali start.
+#  File-file aplikasi di-mount sebagai volume (bind mount).
 #
-#  Container langsung bind ke IP VM — tidak ada Docker bridge.
-#  Semua port terbuka di kedua NIC kecuali dikunci via iptables
-#  (lihat provision-esxi.sh untuk firewall rules per NIC).
+#  VM NIC Layout:
+#    NIC1 (ens192) → 192.168.1.0/24   (Legitimate Admin)
+#    NIC2 (ens224) → 10.10.14.0/24   (Attacker / Red Team)
 # =============================================================
 
 services:
   ctf-lab:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # ----------------------------------------------------------
+    # Pakai image langsung — tidak perlu docker build
+    # ----------------------------------------------------------
+    image: php:8.2-fpm-trixie
     container_name: ctf_lab
     restart: unless-stopped
+
+    # ----------------------------------------------------------
+    # init.sh menggantikan semua RUN command di Dockerfile:
+    #   - apt-get install nginx supervisor openssh-server
+    #   - useradd analyst + password
+    #   - konfigurasi SSH port 2275
+    #   - mkdir /opt/admin/logs + chown + usermod
+    #   - ln -sf nginx site config
+    #   - chown www-data web root
+    #   - inject logs + start supervisord
+    # ----------------------------------------------------------
+    entrypoint: ["/bin/bash", "/init.sh"]
 
     # ----------------------------------------------------------
     # Host network — container pakai network stack VM langsung.
@@ -29,9 +43,26 @@ services:
     network_mode: host
 
     # ----------------------------------------------------------
-    # Log volume — persist di host VM agar survive restart
+    # Bind mount semua file aplikasi — menggantikan COPY di Dockerfile
     # ----------------------------------------------------------
     volumes:
+      # Script init (pengganti Dockerfile RUN steps)
+      - ./init.sh:/init.sh:ro
+
+      # Nginx config → sites-available (init.sh buat symlink ke sites-enabled)
+      - ./nginx.conf:/etc/nginx/sites-available/default:ro
+
+      # Web application files
+      - ./index.php:/var/www/html/index.php:ro
+      - ./robots.txt:/var/www/html/robots.txt:ro
+
+      # Log injector script
+      - ./inject_logs.py:/usr/local/bin/inject_logs.py:ro
+
+      # Supervisord config
+      - ./supervisord.conf:/etc/supervisor/conf.d/ctf.conf:ro
+
+      # Log volume — persist di host VM agar survive container restart
       - /opt/admin/logs:/opt/admin/logs
 
     # Hanya restart jika crash, bukan jika di-stop manual

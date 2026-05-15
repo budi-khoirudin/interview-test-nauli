@@ -176,12 +176,14 @@ cd "${REPO_DIR}"
 ok "Project ada di ${REPO_DIR}"
 
 # -------------------------------------------------------
-# 7. Build & start container
+# 7. Pull image & start container (tanpa build)
 # -------------------------------------------------------
-info "Build Docker image..."
-docker compose build
+info "Pull base image php:8.2-fpm-trixie dari Docker Hub..."
+docker compose pull
 
 info "Start container (host network, detached)..."
+info "Catatan: setup pertama kali membutuhkan waktu lebih lama"
+info "karena init.sh akan install nginx + supervisor + openssh di dalam container"
 docker compose up -d
 
 # Tunggu container naik
